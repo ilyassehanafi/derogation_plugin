@@ -1,0 +1,47 @@
+# This file contains metadata for your plugin.
+
+# This file should be included when you package your plugin.# Mandatory items:
+
+[general]
+name=MINI_PROJET_DEROGATION
+qgisMinimumVersion=3.0
+description=projet_sig_derogation
+version=0.1
+author=GEOINFORMATION_BINOME_HANAFI_MOUSSA
+email=ilyassehanafi@gmail.com
+
+about=Objectif : utilisation des SIG pour l'aide à la prise de décision developper un pluggin d'aide à la décision en matiere de la derogation en urbanisme (dérogation est la violation des prescriptions des document de l'urbanisme) criteres à respecter : surface > 1ha surface buffer 1Km : son buffer doit etre avec une valeur 1km ne touche pas les espaces vert
+
+tracker=http://bugs
+repository=http://repo
+# End of mandatory metadata
+
+# Recommended items:
+
+hasProcessingProvider=no
+# Uncomment the following line and add your changelog:
+# changelog=
+
+# Tags are comma separated with spaces allowed
+tags=python
+
+homepage=http://homepage
+category=Plugins
+icon=icon.png
+# experimental flag
+experimental=True
+
+# deprecated flag (applies to the whole plugin, not just a single version)
+deprecated=False
+
+# Since QGIS 3.8, a comma separated list of plugins to be installed
+# (or upgraded) can be specified.
+# Check the documentation for more information.
+# plugin_dependencies=
+
+Category of the plugin: Raster, Vector, Database or Web
+# category=
+
+# If the plugin can run on QGIS Server.
+server=False
+
