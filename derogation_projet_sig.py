@@ -9,7 +9,7 @@
         begin                : 2021-06-19
         git sha              : $Format:%H$
         copyright            : (C) 2021 by GEOINFORMATION_BINOME_HANAFI_MOUSSA
-        email                : ilyassehanafi@gmail.com
+        email                : ilyassehanafi@gmail.com-aymanemoussa0@gmail.com
  ***************************************************************************/
 
 /***************************************************************************
@@ -21,20 +21,16 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt5.QtCore import QSize
-from qgis.PyQt import QtWidgets
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
+from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
+from qgis._core import QgsFields, QgsField, QgsVectorFileWriter, QgsWkbTypes, QgsCoordinateReferenceSystem, QgsFeature, \
+    QgsGeometry, QgsPointXY, QgsProject, QgsVectorLayer
+from qgis.utils import iface
 
-# Initialize Qt resources from file resources.py
-from qgis._core import QgsVectorLayer, QgsProject
-from qgis._gui import QgsMapCanvas
-
-from .resources import *
-# Import the code for the dialog
 from .derogation_projet_sig_dialog import derogationDialog
 import os.path
+
 
 
 class derogation:
@@ -174,6 +170,64 @@ class derogation:
 
         # will be set False in run()
         self.first_start = True
+    def get_cord(self):
+        # create fields
+        layerFields = QgsFields()
+        layerFields.append(QgsField('ID', QVariant.Int))
+        layerFields.append(QgsField('X', QVariant.Double))
+        layerFields.append(QgsField('Y', QVariant.Double))
+        #define the file path for the new shapefile and creat it
+        fn = 'D:\Geoinfo2 2020-2021\S4\Programmation pour les SIG et pour la télédétection\Mini projet\position\points.shp'
+        writer = QgsVectorFileWriter(fn, 'UTF-8', layerFields, QgsWkbTypes.Point,
+                                     QgsCoordinateReferenceSystem('EPSG:26191'), 'ESRI Shapefile')
+        # First, create an empty QgsFeature().
+        feat = QgsFeature()
+        feat.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(str(eval(self.dlg.corX.text()))), float(str(eval(self.dlg.corY.text()))))))
+        feat.setAttributes([3,float(str(eval(self.dlg.corX.text()))), float(str(eval(self.dlg.corY.text())))])
+        writer.addFeature(feat)
+        layer = iface.addVectorLayer(fn, '', 'ogr')
+    def buffer(self):
+        # Buffer
+        layers = [layer for layer in QgsProject.instance().mapLayers().values()]
+        for layer in layers:
+            if(layer.name()=="points"):
+                buffered_feat_list = []
+
+                # looping through features of the active layer
+                for id, feat in enumerate(layer.getFeatures()):
+                    # original geometry
+                    geometry = feat.geometry()
+
+                    # random integer within the defined values
+                    buffer_dist = float(str(eval(self.dlg.buffer_dis.text())))
+
+                    # create the buffered geometry. The other integer is the number
+                    # of segments
+                    buffer = geometry.buffer(buffer_dist, 16)
+
+                    # creating a new feature that shares the same id number but new geometry
+                    feat = QgsFeature(id)
+                    feat.setGeometry(buffer)
+
+                    # adding all the features to a list
+                    buffered_feat_list.append(feat)
+
+                # making sure the CRS is the same in both layers
+                layer_crs = layer.sourceCrs().toWkt()
+
+                # creating the new vector layer as a temporary (memory) layer
+                buff_layer = QgsVectorLayer('Polygon?crs=' + layer_crs, "Buffered " + layer.sourceName(),
+                                            "memory")
+
+                # adding all the features to it
+                buff_layer.dataProvider().addFeatures(buffered_feat_list)
+
+                # check the layer is valid
+                if buff_layer.isValid():
+                    # inserting the new layer to the project
+                    QgsProject.instance().addMapLayer(buff_layer)
+                else:
+                    print("faulty layer")
 
 
     def unload(self):
@@ -193,27 +247,11 @@ class derogation:
         if self.first_start == True:
             self.first_start = False
             self.dlg = derogationDialog()
+        #button appliquer buffer
+        self.dlg.getPoint.clicked.connect(self.get_cord)
+        self.dlg.appBuffer.clicked.connect(self.buffer)
 
-        layers = QgsProject.instance().layerTreeRoot().children()
-        layerNames = [layer.name() for layer in layers]
-        self.layer = QgsProject.instance().mapLayersByName(layerNames[1])[0]
-        ll = []
-        for l in layerNames:
-            ll.append(QgsProject.instance().mapLayersByName(l)[0])
-
-
-
-        self.centralwidget = QtWidgets.QWidget()
-        self.widget = QgsMapCanvas(self.centralwidget)
-        # self.widget.setObjectName("widget")
-        # self.widget.setExtent(self.layer.extent())
-        self.widget.setLayers(ll)
-        self.open_new_mapcanvas_window()
         # show the dialog
-
-
-
-
         self.dlg.show()
         # Run the dialog event loop
         result = self.dlg.exec_()
@@ -221,8 +259,3 @@ class derogation:
         if result:
             pass
 
-    def open_new_mapcanvas_window(self):
-        self.new_canvas = QgsMapCanvas(self.dlg.widget)
-        self.new_canvas.setLayers(self.widget.layers())
-        self.new_canvas.setExtent(self.layer.extent())
-        self.new_canvas.resize(QSize(1000,700))
