@@ -30,12 +30,12 @@ from qgis.utils import iface
 
 from .derogation_projet_sig_dialog import derogationDialog
 import os.path
-
+from os import listdir
+from os.path import join
 
 
 class derogation:
     """QGIS Plugin Implementation."""
-
     def __init__(self, iface):
         """Constructor.
 
@@ -177,7 +177,20 @@ class derogation:
         layerFields.append(QgsField('X', QVariant.Double))
         layerFields.append(QgsField('Y', QVariant.Double))
         #define the file path for the new shapefile and creat it
-        fn = 'D:\Geoinfo2 2020-2021\S4\Programmation pour les SIG et pour la télédétection\Mini projet\position\points.shp'
+        self.random += 1
+        onlyfiles = [f for f in listdir(r'C:\Users\ilyasse2.0\Desktop\points_derogation') if
+                     os.path.isfile(join(r'C:\Users\ilyasse2.0\Desktop\points_derogation', f))]
+        fn1 = 'points' + str(self.random) + '.shp'
+        a = 0
+        i = 0
+        while a < len(onlyfiles):
+            if (onlyfiles[i] == fn1):
+                self.random += 1
+                fn1 = 'points' + str(self.random) + '.shp'
+            a += 1
+            i += 1
+
+        fn = 'C:/Users/ilyasse2.0/Desktop/points_derogation/points'+str(self.random)+'.shp'
         writer = QgsVectorFileWriter(fn, 'UTF-8', layerFields, QgsWkbTypes.Point,
                                      QgsCoordinateReferenceSystem('EPSG:26191'), 'ESRI Shapefile')
         # First, create an empty QgsFeature().
@@ -248,6 +261,7 @@ class derogation:
             self.first_start = False
             self.dlg = derogationDialog()
         #button appliquer buffer
+        self.random=0
         self.dlg.getPoint.clicked.connect(self.get_cord)
         self.dlg.appBuffer.clicked.connect(self.buffer)
 
