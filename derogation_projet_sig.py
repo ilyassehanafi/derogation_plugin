@@ -26,9 +26,9 @@ from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 from qgis._core import QgsFields, QgsField, QgsVectorFileWriter, QgsWkbTypes, QgsCoordinateReferenceSystem, QgsFeature, \
-    QgsGeometry, QgsPointXY, QgsProject
+    QgsGeometry, QgsPointXY, QgsProject, QgsProcessingFeedback
 from qgis.utils import iface
-
+from qgis._analysis import QgsNativeAlgorithms
 from .derogation_projet_sig_dialog import derogationDialog
 import os.path
 from os import listdir
@@ -181,15 +181,15 @@ class derogation:
         layerFields.append(QgsField('Y', QVariant.Double))
         #define the file path for the new shapefile and creat it
 
-        self.random = self.checkFile()
+        self.counterPoints = self.checkFilePoints('points')
 
-        fn = 'C:/Users/ilyasse2.0/Desktop/points_derogation/points'+str(self.random)+'.shp'
+        fn = "C:/Users/ilyasse2.0/Desktop/points_derogation/points/point" + str(self.counterPoints) + '.shp'
         writer = QgsVectorFileWriter(fn, 'UTF-8', layerFields, QgsWkbTypes.Point,
                                      QgsCoordinateReferenceSystem('EPSG:26191'), 'ESRI Shapefile')
         # First, create an empty QgsFeature().
         feat = QgsFeature()
         feat.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(str(self.dlg.corX.text())), float(str(self.dlg.corY.text())))))
-        feat.setAttributes([self.random,float(str(self.dlg.corX.text())), float(str(self.dlg.corY.text()))])
+        feat.setAttributes([self.counterPoints, float(str(self.dlg.corX.text())), float(str(self.dlg.corY.text()))])
         writer.addFeature(feat)
         iface.addVectorLayer(fn, '', 'ogr')
         del(writer)
@@ -197,8 +197,8 @@ class derogation:
         # Buffer
         layers = [layer for layer in QgsProject.instance().mapLayers().values()]
         bufDist = float(self.dlg.buffer_dis.text())
-        random = self.checkFile()
-        outFile = 'C:/Users/ilyasse2.0/Desktop/points_derogation/buffer' + str(random) + '.shp'
+        random = self.checkFilePoints('buffers')
+        outFile ="C:/Users/ilyasse2.0/Desktop/points_derogation/buffers/buffer" + str(random) + '.shp'
         layer = layers[-1]
         fields = layer.fields()
         feats = layer.getFeatures()
@@ -213,33 +213,66 @@ class derogation:
         print('done')
         iface.addVectorLayer(outFile, '', 'ogr')
         del (writer)
-    def checkFile(self):
-        self.random += 1
-        onlyfiles = [f for f in listdir(r'C:\Users\ilyasse2.0\Desktop\points_derogation') if
-                     os.path.isfile(join(r'C:\Users\ilyasse2.0\Desktop\points_derogation', f))]
-        fn1 = 'points' + str(self.random) + '.shp'
+    def checkFile(self,string):
+        if (string == 'points'):
+            self.counterPoints += 1
+            p = self.counterPoints
+            return p
+        elif (string == 'buffers'):
+            self.counterBuffers += 1
+            b = self.counterBuffers
+            return b
+
+    def checkFilePoints(self, string):
+        number = self.checkFile(string)
+        onlyfiles = [f for f in listdir('C:/Users/ilyasse2.0/Desktop/points_derogation/' + string + '/') if
+                     os.path.isfile(join('C:/Users/ilyasse2.0/Desktop/points_derogation/' + string + '/' , f))]
+        mot = string[:-1]
+        fn1 = mot + str(number) + '.shp'
         a = 0
         i = 0
         while a < len(onlyfiles):
             if (onlyfiles[i] == fn1):
-                self.random += 1
-                fn1 = 'points' + str(self.random) + '.shp'
+                number += 1
+                fn1 = mot + str(number) + '.shp'
             a += 1
             i += 1
-        return self.random
-
+        return number
+    # def checkFileBuffer(self,string):
+    #     self.counterBuffers += 1
+    #     onlyfiles = [f for f in listdir('C:/Users/ilyasse2.0/Desktop/points_derogation/' + string + '/') if
+    #                  os.path.isfile(join('C:/Users/ilyasse2.0/Desktop/points_derogation/' + string + '/' , f))]
+    #     fn1 = 'points' + str(self.counterBuffers) + '.shp'
+    #     a = 0
+    #     i = 0
+    #     while a < len(onlyfiles):
+    #         if (onlyfiles[i] == fn1):
+    #             self.counterBuffers += 1
+    #             fn1 = 'points' + str(self.counterBuffers) + '.shp'
+    #         a += 1
+    #         i += 1
+    #     return self.counterBuffers
+    def createFolder(self,string):
+        directory = "C:/Users/ilyasse2.0/Desktop/points_derogation/" + string
+        os.mkdir(directory)
+        return directory
 
     def intersectZn(self):
         layers = [layer for layer in QgsProject.instance().mapLayers().values()]
-        layer1 = layers[5]
-        layer2 = layers[-8]
-        processing.run("saga:intersect", {
-            "INPUT": layer1,
-            "PREDICATE": 0,
-            "INTERSECT": layer2,
-            "METHOD": 0
-        })
-        # processing.runandload("qgis:intersection", layer1, layer2, "memory:myCut")
+        # QgsProject.instance().mapLayersByName('Derogation_central_13_avril')
+        layer1 = layers[-2]
+        layer2 = layers
+        random = self.checkFilePoints()
+        outFile =  'C:/Users/ilyasse2.0/Desktop/points_derogation/intersection'+str(random) +'.shp'
+        params = {
+            'INPUT': layer1,
+            'OVERLAY': layer2,
+            'OUTPUT': outFile
+        }
+        feedback = QgsProcessingFeedback()
+        processing.run('qgis:intersection', params, feedback=feedback)
+        QgsProcessingFeedback()
+        iface.addVectorLayer(outFile, '', 'ogr')
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
@@ -259,7 +292,8 @@ class derogation:
             self.first_start = False
             self.dlg = derogationDialog()
         #button appliquer buffer
-        self.random=0
+        self.counterPoints = 0
+        self.counterBuffers = 0
         self.dlg.getPoint.clicked.connect(self.get_cord)
         self.dlg.appBuffer.clicked.connect(self.buffer)
         self.dlg.intersection.clicked.connect(self.intersectZn)
