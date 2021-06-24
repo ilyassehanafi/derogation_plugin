@@ -185,6 +185,19 @@
       <string>Buffer</string>
      </property>
     </widget>
+    <widget class="QPushButton" name="intersection">
+     <property name="geometry">
+      <rect>
+       <x>330</x>
+       <y>290</y>
+       <width>111</width>
+       <height>41</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Intersection</string>
+     </property>
+    </widget>
    </widget>
    <widget class="QWidget" name="tab_2">
     <attribute name="title">

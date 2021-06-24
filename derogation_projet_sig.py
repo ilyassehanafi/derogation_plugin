@@ -21,17 +21,19 @@
  *                                                                         *
  ***************************************************************************/
 """
+from qgis import processing
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 from qgis._core import QgsFields, QgsField, QgsVectorFileWriter, QgsWkbTypes, QgsCoordinateReferenceSystem, QgsFeature, \
-    QgsGeometry, QgsPointXY, QgsProject, QgsVectorLayer
+    QgsGeometry, QgsPointXY, QgsProject
 from qgis.utils import iface
 
 from .derogation_projet_sig_dialog import derogationDialog
 import os.path
 from os import listdir
 from os.path import join
+
 
 
 class derogation:
@@ -82,6 +84,7 @@ class derogation:
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
         return QCoreApplication.translate('derogation', message)
+
 
 
     def add_action(
@@ -177,6 +180,40 @@ class derogation:
         layerFields.append(QgsField('X', QVariant.Double))
         layerFields.append(QgsField('Y', QVariant.Double))
         #define the file path for the new shapefile and creat it
+
+        self.random = self.checkFile()
+
+        fn = 'C:/Users/ilyasse2.0/Desktop/points_derogation/points'+str(self.random)+'.shp'
+        writer = QgsVectorFileWriter(fn, 'UTF-8', layerFields, QgsWkbTypes.Point,
+                                     QgsCoordinateReferenceSystem('EPSG:26191'), 'ESRI Shapefile')
+        # First, create an empty QgsFeature().
+        feat = QgsFeature()
+        feat.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(str(self.dlg.corX.text())), float(str(self.dlg.corY.text())))))
+        feat.setAttributes([self.random,float(str(self.dlg.corX.text())), float(str(self.dlg.corY.text()))])
+        writer.addFeature(feat)
+        iface.addVectorLayer(fn, '', 'ogr')
+        del(writer)
+    def buffer(self):
+        # Buffer
+        layers = [layer for layer in QgsProject.instance().mapLayers().values()]
+        bufDist = float(self.dlg.buffer_dis.text())
+        random = self.checkFile()
+        outFile = 'C:/Users/ilyasse2.0/Desktop/points_derogation/buffer' + str(random) + '.shp'
+        layer = layers[-1]
+        fields = layer.fields()
+        feats = layer.getFeatures()
+
+        writer = QgsVectorFileWriter(outFile, 'UTF-8', fields, QgsWkbTypes.Polygon, layer.sourceCrs(), 'ESRI Shapefile')
+
+        for feat in feats:
+            geom = feat.geometry()
+            buffer = geom.buffer(bufDist, 5)
+            feat.setGeometry(buffer)
+            writer.addFeature(feat)
+        print('done')
+        iface.addVectorLayer(outFile, '', 'ogr')
+        del (writer)
+    def checkFile(self):
         self.random += 1
         onlyfiles = [f for f in listdir(r'C:\Users\ilyasse2.0\Desktop\points_derogation') if
                      os.path.isfile(join(r'C:\Users\ilyasse2.0\Desktop\points_derogation', f))]
@@ -189,59 +226,20 @@ class derogation:
                 fn1 = 'points' + str(self.random) + '.shp'
             a += 1
             i += 1
+        return self.random
 
-        fn = 'C:/Users/ilyasse2.0/Desktop/points_derogation/points'+str(self.random)+'.shp'
-        writer = QgsVectorFileWriter(fn, 'UTF-8', layerFields, QgsWkbTypes.Point,
-                                     QgsCoordinateReferenceSystem('EPSG:26191'), 'ESRI Shapefile')
-        # First, create an empty QgsFeature().
-        feat = QgsFeature()
-        feat.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(str(eval(self.dlg.corX.text()))), float(str(eval(self.dlg.corY.text()))))))
-        feat.setAttributes([3,float(str(eval(self.dlg.corX.text()))), float(str(eval(self.dlg.corY.text())))])
-        writer.addFeature(feat)
-        layer = iface.addVectorLayer(fn, '', 'ogr')
-    def buffer(self):
-        # Buffer
+
+    def intersectZn(self):
         layers = [layer for layer in QgsProject.instance().mapLayers().values()]
-        for layer in layers:
-            if(layer.name()=="points"):
-                buffered_feat_list = []
-
-                # looping through features of the active layer
-                for id, feat in enumerate(layer.getFeatures()):
-                    # original geometry
-                    geometry = feat.geometry()
-
-                    # random integer within the defined values
-                    buffer_dist = float(str(eval(self.dlg.buffer_dis.text())))
-
-                    # create the buffered geometry. The other integer is the number
-                    # of segments
-                    buffer = geometry.buffer(buffer_dist, 16)
-
-                    # creating a new feature that shares the same id number but new geometry
-                    feat = QgsFeature(id)
-                    feat.setGeometry(buffer)
-
-                    # adding all the features to a list
-                    buffered_feat_list.append(feat)
-
-                # making sure the CRS is the same in both layers
-                layer_crs = layer.sourceCrs().toWkt()
-
-                # creating the new vector layer as a temporary (memory) layer
-                buff_layer = QgsVectorLayer('Polygon?crs=' + layer_crs, "Buffered " + layer.sourceName(),
-                                            "memory")
-
-                # adding all the features to it
-                buff_layer.dataProvider().addFeatures(buffered_feat_list)
-
-                # check the layer is valid
-                if buff_layer.isValid():
-                    # inserting the new layer to the project
-                    QgsProject.instance().addMapLayer(buff_layer)
-                else:
-                    print("faulty layer")
-
+        layer1 = layers[5]
+        layer2 = layers[-8]
+        processing.run("saga:intersect", {
+            "INPUT": layer1,
+            "PREDICATE": 0,
+            "INTERSECT": layer2,
+            "METHOD": 0
+        })
+        # processing.runandload("qgis:intersection", layer1, layer2, "memory:myCut")
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
@@ -264,6 +262,7 @@ class derogation:
         self.random=0
         self.dlg.getPoint.clicked.connect(self.get_cord)
         self.dlg.appBuffer.clicked.connect(self.buffer)
+        self.dlg.intersection.clicked.connect(self.intersectZn)
 
         # show the dialog
         self.dlg.show()
