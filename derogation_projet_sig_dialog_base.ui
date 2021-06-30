@@ -6,12 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>602</width>
-    <height>500</height>
+    <width>736</width>
+    <height>522</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MINI_PROJET_DEROGATION</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true"/>
   </property>
   <widget class="QDialogButtonBox" name="button_box">
    <property name="geometry">
@@ -34,8 +37,8 @@
     <rect>
      <x>10</x>
      <y>10</y>
-     <width>581</width>
-     <height>481</height>
+     <width>701</width>
+     <height>501</height>
     </rect>
    </property>
    <property name="styleSheet">
@@ -48,36 +51,26 @@
     <attribute name="title">
      <string>Tab 1</string>
     </attribute>
-    <widget class="QLineEdit" name="corY">
+    <widget class="QPushButton" name="drawPolygon">
      <property name="geometry">
       <rect>
-       <x>100</x>
-       <y>140</y>
-       <width>141</width>
-       <height>31</height>
-      </rect>
-     </property>
-    </widget>
-    <widget class="QPushButton" name="getPoint">
-     <property name="geometry">
-      <rect>
-       <x>110</x>
-       <y>190</y>
+       <x>20</x>
+       <y>60</y>
        <width>111</width>
        <height>41</height>
       </rect>
      </property>
      <property name="text">
-      <string>Get point</string>
+      <string>Draw your polygon</string>
      </property>
     </widget>
     <widget class="QLabel" name="label">
      <property name="geometry">
       <rect>
-       <x>50</x>
-       <y>90</y>
-       <width>21</width>
-       <height>21</height>
+       <x>60</x>
+       <y>160</y>
+       <width>311</width>
+       <height>71</height>
       </rect>
      </property>
      <property name="font">
@@ -86,28 +79,7 @@
       </font>
      </property>
      <property name="text">
-      <string>X</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignCenter</set>
-     </property>
-    </widget>
-    <widget class="QLabel" name="label_2">
-     <property name="geometry">
-      <rect>
-       <x>50</x>
-       <y>140</y>
-       <width>21</width>
-       <height>31</height>
-      </rect>
-     </property>
-     <property name="font">
-      <font>
-       <pointsize>12</pointsize>
-      </font>
-     </property>
-     <property name="text">
-      <string>Y</string>
+      <string>POLYGON MUST HAVE 5 SIDES</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
@@ -118,7 +90,7 @@
       <rect>
        <x>180</x>
        <y>10</y>
-       <width>231</width>
+       <width>291</width>
        <height>31</height>
       </rect>
      </property>
@@ -138,7 +110,7 @@
      <property name="geometry">
       <rect>
        <x>270</x>
-       <y>110</y>
+       <y>70</y>
        <width>131</width>
        <height>31</height>
       </rect>
@@ -156,18 +128,8 @@
      <property name="geometry">
       <rect>
        <x>420</x>
-       <y>110</y>
+       <y>70</y>
        <width>131</width>
-       <height>31</height>
-      </rect>
-     </property>
-    </widget>
-    <widget class="QLineEdit" name="corX">
-     <property name="geometry">
-      <rect>
-       <x>100</x>
-       <y>90</y>
-       <width>141</width>
        <height>31</height>
       </rect>
      </property>
@@ -175,8 +137,8 @@
     <widget class="QPushButton" name="appBuffer">
      <property name="geometry">
       <rect>
-       <x>450</x>
-       <y>190</y>
+       <x>440</x>
+       <y>120</y>
        <width>91</width>
        <height>41</height>
       </rect>
@@ -188,14 +150,40 @@
     <widget class="QPushButton" name="intersection">
      <property name="geometry">
       <rect>
-       <x>330</x>
-       <y>290</y>
+       <x>500</x>
+       <y>270</y>
        <width>111</width>
        <height>41</height>
       </rect>
      </property>
      <property name="text">
       <string>Intersection</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="exportLayer">
+     <property name="geometry">
+      <rect>
+       <x>500</x>
+       <y>330</y>
+       <width>111</width>
+       <height>41</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Export to pdf </string>
+     </property>
+    </widget>
+    <widget class="QTableWidget" name="liste_des_intersections">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>230</y>
+       <width>451</width>
+       <height>211</height>
+      </rect>
      </property>
     </widget>
    </widget>

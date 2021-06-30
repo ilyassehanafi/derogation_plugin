@@ -21,23 +21,31 @@
  *                                                                         *
  ***************************************************************************/
 """
+import qgis
+from PyQt5.QtGui import QColor, QFont
+from PyQt5.QtWidgets import QTableWidgetItem
+from PyQt5.QtXml import QDomDocument
+from plugins.processing.tools import dataobjects
 from qgis import processing
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 from qgis._core import QgsFields, QgsField, QgsVectorFileWriter, QgsWkbTypes, QgsCoordinateReferenceSystem, QgsFeature, \
-    QgsGeometry, QgsPointXY, QgsProject, QgsProcessingFeedback
+    QgsGeometry, QgsProject, QgsProcessingFeedback, QgsFeatureRequest, QgsLayout, QgsReadWriteContext, \
+    QgsLayoutExporter, QgsPrintLayout, QgsLayoutItemMap, QgsMapSettings, QgsRectangle, QgsLayoutPoint, QgsLayoutSize, \
+    QgsUnitTypes, QgsLayoutItemLegend, QgsLayerTree, QgsLayoutItemScaleBar, QgsLayoutItemLabel, QgsVectorLayer
 from qgis.utils import iface
-from qgis._analysis import QgsNativeAlgorithms
 from .derogation_projet_sig_dialog import derogationDialog
+from qgis._gui import QgsMapTool
 import os.path
 from os import listdir
 from os.path import join
-
+from .PointTool import PointTool
 
 
 class derogation:
     """QGIS Plugin Implementation."""
+
     def __init__(self, iface):
         """Constructor.
 
@@ -85,19 +93,17 @@ class derogation:
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
         return QCoreApplication.translate('derogation', message)
 
-
-
     def add_action(
-        self,
-        icon_path,
-        text,
-        callback,
-        enabled_flag=True,
-        add_to_menu=True,
-        add_to_toolbar=True,
-        status_tip=None,
-        whats_this=None,
-        parent=None):
+            self,
+            icon_path,
+            text,
+            callback,
+            enabled_flag=True,
+            add_to_menu=True,
+            add_to_toolbar=True,
+            status_tip=None,
+            whats_this=None,
+            parent=None):
         """Add a toolbar icon to the toolbar.
 
         :param icon_path: Path to the icon for this action. Can be a resource
@@ -173,32 +179,17 @@ class derogation:
 
         # will be set False in run()
         self.first_start = True
+
     def get_cord(self):
-        # create fields
-        layerFields = QgsFields()
-        layerFields.append(QgsField('ID', QVariant.Int))
-        layerFields.append(QgsField('X', QVariant.Double))
-        layerFields.append(QgsField('Y', QVariant.Double))
-        #define the file path for the new shapefile and creat it
+        tool = PointTool(iface.mapCanvas(), self)
+        iface.mapCanvas().setMapTool(tool)
 
-        self.counterPoints = self.checkFilePoints('points')
-
-        fn = "C:/Users/ilyasse2.0/Desktop/points_derogation/points/point" + str(self.counterPoints) + '.shp'
-        writer = QgsVectorFileWriter(fn, 'UTF-8', layerFields, QgsWkbTypes.Point,
-                                     QgsCoordinateReferenceSystem('EPSG:26191'), 'ESRI Shapefile')
-        # First, create an empty QgsFeature().
-        feat = QgsFeature()
-        feat.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(str(self.dlg.corX.text())), float(str(self.dlg.corY.text())))))
-        feat.setAttributes([self.counterPoints, float(str(self.dlg.corX.text())), float(str(self.dlg.corY.text()))])
-        writer.addFeature(feat)
-        iface.addVectorLayer(fn, '', 'ogr')
-        del(writer)
     def buffer(self):
         # Buffer
         layers = [layer for layer in QgsProject.instance().mapLayers().values()]
         bufDist = float(self.dlg.buffer_dis.text())
         random = self.checkFilePoints('buffers')
-        outFile ="C:/Users/ilyasse2.0/Desktop/points_derogation/buffers/buffer" + str(random) + '.shp'
+        outFile = "C:/Users/ilyasse2.0/Desktop/points_derogation/buffers/buffer" + str(random) + '.shp'
         layer = layers[-1]
         fields = layer.fields()
         feats = layer.getFeatures()
@@ -210,23 +201,27 @@ class derogation:
             buffer = geom.buffer(bufDist, 5)
             feat.setGeometry(buffer)
             writer.addFeature(feat)
-        print('done')
         iface.addVectorLayer(outFile, '', 'ogr')
         del (writer)
-    def checkFile(self,string):
-        if (string == 'points'):
-            self.counterPoints += 1
-            p = self.counterPoints
+
+    def checkFile(self, string):
+        if (string == 'polygons'):
+            self.counterPolygons += 1
+            p = self.counterPolygons
             return p
         elif (string == 'buffers'):
             self.counterBuffers += 1
             b = self.counterBuffers
             return b
+        elif (string == 'intersections'):
+            self.counterintersect += 1
+            i = self.counterintersect
+            return i
 
     def checkFilePoints(self, string):
         number = self.checkFile(string)
         onlyfiles = [f for f in listdir('C:/Users/ilyasse2.0/Desktop/points_derogation/' + string + '/') if
-                     os.path.isfile(join('C:/Users/ilyasse2.0/Desktop/points_derogation/' + string + '/' , f))]
+                     os.path.isfile(join('C:/Users/ilyasse2.0/Desktop/points_derogation/' + string + '/', f))]
         mot = string[:-1]
         fn1 = mot + str(number) + '.shp'
         a = 0
@@ -238,41 +233,178 @@ class derogation:
             a += 1
             i += 1
         return number
-    # def checkFileBuffer(self,string):
-    #     self.counterBuffers += 1
-    #     onlyfiles = [f for f in listdir('C:/Users/ilyasse2.0/Desktop/points_derogation/' + string + '/') if
-    #                  os.path.isfile(join('C:/Users/ilyasse2.0/Desktop/points_derogation/' + string + '/' , f))]
-    #     fn1 = 'points' + str(self.counterBuffers) + '.shp'
-    #     a = 0
-    #     i = 0
-    #     while a < len(onlyfiles):
-    #         if (onlyfiles[i] == fn1):
-    #             self.counterBuffers += 1
-    #             fn1 = 'points' + str(self.counterBuffers) + '.shp'
-    #         a += 1
-    #         i += 1
-    #     return self.counterBuffers
-    def createFolder(self,string):
-        directory = "C:/Users/ilyasse2.0/Desktop/points_derogation/" + string
-        os.mkdir(directory)
-        return directory
 
     def intersectZn(self):
-        layers = [layer for layer in QgsProject.instance().mapLayers().values()]
-        # QgsProject.instance().mapLayersByName('Derogation_central_13_avril')
-        layer1 = layers[-2]
-        layer2 = layers
-        random = self.checkFilePoints()
-        outFile =  'C:/Users/ilyasse2.0/Desktop/points_derogation/intersection'+str(random) +'.shp'
+        # Receupere la valeur de l'index
+        indexIntersect = self.checkFilePoints('intersections')
+        indexPolygon = self.checkFilePoints('polygons')
+        outFile = 'C:/Users/ilyasse2.0/Desktop/points_derogation/intersections/intersection'
+        layer1 = QgsProject.instance().mapLayersByName('DOMAINE_FORESTIER')[0]
+        layer2 = QgsProject.instance().mapLayersByName('DOMIANE_PRIVE_ETAT')[0]
+        layer3 = QgsProject.instance().mapLayersByName('COLLECTIF')[0]
+        layer4 = QgsProject.instance().mapLayersByName('Derogation_central_13_avril')[0]
+        layer5 = QgsProject.instance().mapLayersByName('DOMAINE_COMMUNAL')[0]
+        layer6 = QgsProject.instance().mapLayersByName('DOMAINE_PUBLIC')[0]
+        layerList = []
+        self.listLayers1 = []
+        self.listLayers2 = []
+        self.listPourcentages = []
+        layerList.append(layer1)
+        layerList.append(layer2)
+        layerList.append(layer3)
+        layerList.append(layer4)
+        layerList.append(layer5)
+        layerList.append(layer6)
+        j = indexIntersect
+        i = 0
+        index1 = indexPolygon - 1
+        layer = QgsProject.instance().mapLayersByName('polygon' + str(index1))[0]
+        while i < len(layerList):
+            print(layerList[i].name())
+            print(layer)
+            self.intersect(layerList[i],layer, outFile + str(j + i) + '.shp')
+            i += 1
+            self.calculatePourcentage(layer, i)
+        self.displayInfo(self.listLayers1, self.listPourcentages,self.listLayers2)
+
+    def intersect(self, layer1, layer2, outFile):
+        if layer1.name() == 'Derogation_central_13_avril':
+            indexBuffer = self.checkFilePoints('buffers')
+            layer2 = QgsProject.instance().mapLayersByName('buffer' + str(indexBuffer - 1))[0]
         params = {
             'INPUT': layer1,
             'OVERLAY': layer2,
-            'OUTPUT': outFile
+            'OUTPUT': outFile,
         }
         feedback = QgsProcessingFeedback()
-        processing.run('qgis:intersection', params, feedback=feedback)
+        context = dataobjects.createContext()
+        context.setInvalidGeometryCheck(QgsFeatureRequest.GeometrySkipInvalid)
+        processing.run('qgis:intersection', params, context=context, feedback=feedback)
         QgsProcessingFeedback()
         iface.addVectorLayer(outFile, '', 'ogr')
+        self.listLayers2.append(layer2.name())
+        # qgis.utils.iface.setActiveLayer(layer2)
+        # qgis.utils.iface.zoomToActiveLayer()
+
+    def calculatePourcentage(self, layer2, indexIntersect):
+        geom = None
+        geom2 = None
+        layer1 = QgsProject.instance().mapLayersByName('intersection' + str(indexIntersect))[0]
+        self.listLayers1.append(layer1.name())
+        feats = layer1.getFeatures()
+        feats2 = layer2.getFeatures()
+        sumArea1 = 0
+        sumArea2 = 0
+        for feat in feats:
+            geom = feat.geometry()
+            sumArea1 += geom.area()
+        for feat2 in feats2:
+            geom2 = feat2.geometry()
+            sumArea2 += geom2.area()
+        if (geom is None) or (geom2 is None):
+            print("Pourcentage d'intersection de : layer  " + layer1.name() + " et  layer2 : " + layer2.name() + "= 0% " )
+            self.listPourcentages.append(0)
+            return
+        if geom.intersects(geom2):
+            pourcentage = (sumArea1 / sumArea2) * 100
+            print("Pourcentage d'intersection de : layer  " + layer1.name() + " et  layer2 : " + layer2.name() + ' est : %.5f ' %pourcentage )
+            self.listPourcentages.append(pourcentage)
+
+
+    def displayInfo(self, list1, list2, list3):
+        nb_Col = 3
+        nb_Row = len(list2)
+        Table_Result = self.dlg.liste_des_intersections
+        Table_Result.setRowCount(0)
+        Table_Result.setRowCount(nb_Row)
+        Table_Result.setColumnCount(nb_Col)
+        # Pour remplir la table avec les images recherchées
+        a = 0
+        i = 0
+        j = 0
+        while (i < nb_Row) :
+            if j >= len(list1):
+                break
+            Table_Result.setItem(a, 0, QTableWidgetItem(str(list1[j])))
+            Table_Result.setItem(a, 1, QTableWidgetItem(str(list3[j])))
+            Table_Result.setItem(a, 2, QTableWidgetItem(str(list2[i]) + '%'))
+            a += 1
+            i += 1
+            j += 1
+        Table_Result.setHorizontalHeaderLabels(
+            [u'LAYER1', u'LAYER2', u'POURCENTAGE_INTERSECTION'])
+        Table_Result.setEditTriggers(Table_Result.NoEditTriggers)
+        Table_Result.resizeColumnsToContents()
+
+    def exportMap(self):
+        layers = QgsProject.instance().mapLayersByName('DOMIANE_PRIVE_ETAT')
+        layer = layers[0]
+
+        project = QgsProject.instance()
+        manager = project.layoutManager()
+        layoutName = 'Layout1'
+        layouts_list = manager.printLayouts()
+        # remove any duplicate layouts
+        for layout in layouts_list:
+            if layout.name() == layoutName:
+                manager.removeLayout(layout)
+        layout = QgsPrintLayout(project)
+        layout.initializeDefaults()
+        layout.setName(layoutName)
+        manager.addLayout(layout)
+
+        # create map item in the layout
+        map = QgsLayoutItemMap(layout)
+        map.setRect(20, 20, 20, 20)
+
+        # set the map extent
+        ms = QgsMapSettings()
+        ms.setLayers([layer])  # set layers to be mapped
+        rect = QgsRectangle(ms.fullExtent())
+        rect.scale(1.0)
+        ms.setExtent(rect)
+        map.setExtent(rect)
+        map.setBackgroundColor(QColor(255, 255, 255, 0))
+        layout.addLayoutItem(map)
+
+        map.attemptMove(QgsLayoutPoint(5, 20, QgsUnitTypes.LayoutMillimeters))
+        map.attemptResize(QgsLayoutSize(180, 180, QgsUnitTypes.LayoutMillimeters))
+
+        legend = QgsLayoutItemLegend(layout)
+        legend.setTitle("Legend")
+        layerTree = QgsLayerTree()
+        layerTree.addLayer(layer)
+        legend.model().setRootGroup(layerTree)
+        layout.addLayoutItem(legend)
+        legend.attemptMove(QgsLayoutPoint(230, 15, QgsUnitTypes.LayoutMillimeters))
+
+        scalebar = QgsLayoutItemScaleBar(layout)
+        scalebar.setStyle('Line Ticks Up')
+        scalebar.setUnits(QgsUnitTypes.DistanceKilometers)
+        scalebar.setNumberOfSegments(4)
+        scalebar.setNumberOfSegmentsLeft(0)
+        scalebar.setUnitsPerSegment(0.5)
+        scalebar.setLinkedMap(map)
+        scalebar.setUnitLabel('km')
+        scalebar.setFont(QFont('Arial', 14))
+        scalebar.update()
+        layout.addLayoutItem(scalebar)
+        scalebar.attemptMove(QgsLayoutPoint(220, 190, QgsUnitTypes.LayoutMillimeters))
+
+        title = QgsLayoutItemLabel(layout)
+        title.setText("My Title")
+        title.setFont(QFont('Arial', 24))
+        title.adjustSizeToText()
+        layout.addLayoutItem(title)
+        title.attemptMove(QgsLayoutPoint(10, 5, QgsUnitTypes.LayoutMillimeters))
+
+        layout = manager.layoutByName(layoutName)
+        exporter = QgsLayoutExporter(layout)
+
+        fn = 'C:/Users/ilyasse2.0/Desktop/points_derogation/decision/derogation.pdf'
+        # exporter.exportToImage(fn, QgsLayoutExporter.ImageExportSettings())
+        exporter.exportToPdf(fn, QgsLayoutExporter.PdfExportSettings())
+
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
@@ -282,7 +414,6 @@ class derogation:
                 action)
             self.iface.removeToolBarIcon(action)
 
-
     def run(self):
         """Run method that performs all the real work"""
 
@@ -291,13 +422,14 @@ class derogation:
         if self.first_start == True:
             self.first_start = False
             self.dlg = derogationDialog()
-        #button appliquer buffer
-        self.counterPoints = 0
+        # button appliquer buffer
+        self.counterPolygons = 0
         self.counterBuffers = 0
-        self.dlg.getPoint.clicked.connect(self.get_cord)
+        self.counterintersect = 0
+        self.dlg.drawPolygon.clicked.connect(self.get_cord)
         self.dlg.appBuffer.clicked.connect(self.buffer)
         self.dlg.intersection.clicked.connect(self.intersectZn)
-
+        self.dlg.exportLayer.clicked.connect(self.exportMap)
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
@@ -306,3 +438,71 @@ class derogation:
         if result:
             pass
 
+
+class PointTool(QgsMapTool):
+
+    def __init__(self, canvas, context):
+        QgsMapTool.__init__(self, canvas)
+        self.canvas = canvas
+        self.i = 0
+        self.list = []
+        self.context = context
+
+    def canvasPressEvent(self, event):
+        pass
+
+    def canvasMoveEvent(self, event):
+        pass
+
+    def canvasReleaseEvent(self, event):
+        # Get the click
+        x = event.pos().x()
+        y = event.pos().y()
+        point = self.canvas.getCoordinateTransform().toMapCoordinates(x, y)
+        self.savePoints(point)
+        if self.i == 5:
+            self.createPolygone()
+            self.i = 0
+            self.list.clear()
+            self.deactivate()
+            iface.actionPan().trigger()
+
+    def activate(self):
+        pass
+
+    def deactivate(self):
+        pass
+
+    def isZoomTool(self):
+        return False
+
+    def isTransient(self):
+        return False
+
+    def isEditTool(self):
+        return True
+
+    def savePoints(self, point):
+        self.list.append(point)
+        self.i += 1
+        return list
+
+    def createPolygone(self):
+        # Define the fields of your polygon : it will appear in the attribute table
+        layerFields = QgsFields()
+        layerFields.append(QgsField('ID', QVariant.Int))
+        layerFields.append(QgsField('X', QVariant.Double))
+        layerFields.append(QgsField('Y', QVariant.Double))
+        layerFields.append(QgsField('Area', QVariant.Double))
+        # define the file path for the new shapefile and creat it
+        counterPoints = self.context.checkFilePoints('polygons')
+        fn = "C:/Users/ilyasse2.0/Desktop/points_derogation/polygons/polygon" + str(counterPoints) + '.shp'
+        writer = QgsVectorFileWriter(fn, 'UTF-8', layerFields, QgsWkbTypes.Polygon,
+                                     QgsCoordinateReferenceSystem('EPSG:26191'), 'ESRI Shapefile')
+        # First, create an empty QgsFeature().
+        feat = QgsFeature()
+        feat.setGeometry(QgsGeometry.fromPolygonXY([self.list]))
+        feat.setAttributes([1, self.list[0][0], self.list[0][1], feat.geometry().area()])
+        writer.addFeature(feat)
+        iface.addVectorLayer(fn, '', 'ogr')
+        del (writer)
